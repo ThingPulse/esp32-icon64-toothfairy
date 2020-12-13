@@ -30,6 +30,16 @@ SOFTWARE.
 #include "AudioOutputI2S.h"
 #include <EasyButton.h>
 
+
+// ********* User settings *********
+const char* ssid = "yourssid";
+const char* password = "yourpassw0rd";
+const char* audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
+const uint8_t countdownSeconds = 120;
+const uint8_t ledBrightness = 40;
+// ********* END User settings *********
+
+
 // Audio Settings
 #define I2S_DOUT      25
 #define I2S_BCLK      26
@@ -44,13 +54,9 @@ SOFTWARE.
 
 CRGB leds[NUM_LEDS];
 
-const char* ssid = "yourssid";
-const char* password = "yourpassw0rd";
-
 uint8_t getLedIndex(uint8_t x, uint8_t y);
 void drawProgressBar(uint8_t progress);
 
-const char *URL="http://0n-80s.radionetz.de:8000/0n-70s.mp3";
 
 AudioGeneratorMP3 *mp3;
 AudioFileSourceICYStream *file;
@@ -58,18 +64,22 @@ AudioFileSourceBuffer *buff;
 AudioOutputI2S *out;
 
 EasyButton button(PUSH_BUTTON);
-uint32_t startMillis = 0;
-boolean isRunning = false;
+uint32_t countdownStartMillis = 0;
+uint8_t countdownProgress = -1;
+uint32_t countdownLedSwitchMillis = countdownSeconds * 1000 / NUM_LEDS;
+boolean countdownIsRunning = false;
 
-// Callback.
-void onPressed() {
-    Serial.println("Button has been pressed!");
-    startMillis = millis();
-    isRunning = true;
-    digitalWrite(MODE_PIN, HIGH);
+void onButtonPressed() {
+  Serial.println("Starting countdown!");
+  countdownStartMillis = millis();
+  countdownIsRunning = true;
+  digitalWrite(MODE_PIN, HIGH);
 }
 
 void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
   pinMode(PUSH_BUTTON, INPUT);
   pinMode(MODE_PIN, OUTPUT);
   digitalWrite(MODE_PIN, LOW);
@@ -78,22 +88,20 @@ void setup() {
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
   
-  WiFi.begin(ssid, password);
-
   button.begin();
+  button.onPressed(onButtonPressed);
 
-  // Attach callback.
-  button.onPressed(onPressed);
-
+  Serial.println("Connecting to WiFi");
+  WiFi.begin(ssid, password);
   // Try forever
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.println("...Connecting to WiFi");
+    Serial.print(".");
     delay(1000);
   }
   Serial.println("Connected");
 
   audioLogger = &Serial;
-  file = new AudioFileSourceICYStream(URL);
+  file = new AudioFileSourceICYStream(audioStreamUrl);
   //file->RegisterMetadataCB(MDCallback, (void*)"ICY");
   buff = new AudioFileSourceBuffer(file, 2048);
   //buff->RegisterStatusCB(StatusCallback, (void*)"buffer");
@@ -105,21 +113,25 @@ void setup() {
   mp3->begin(buff, out);
 
   FastLED.addLeds<WS2812B, DATA_PIN>(leds, NUM_LEDS);
-
+  FastLED.setBrightness(ledBrightness);
 }
 
 void loop() {
-  if (!isRunning) {
-    startMillis = millis();
+  uint8_t progress = 0;
+  // only calculate progress if countdown is running
+  if (countdownIsRunning) {
+    progress = ((millis() - countdownStartMillis) / countdownLedSwitchMillis) % NUM_LEDS;
   }
-  uint8_t progress = ((millis() - startMillis) / 3000) % 64;
-  drawProgressBar(progress);
-  FastLED.setBrightness(50);
-  FastLED.show();
+  // only update LEDs if countdown status has changed
+  if (progress != countdownProgress) {
+    countdownProgress = progress;
+    drawProgressBar(progress);
+    FastLED.show();
+  }
 
-  static int lastms = 0;
   button.read();
 
+  static int lastms = 0;
   if (mp3->isRunning()) {
     if (millis()-lastms > 1000) {
       lastms = millis();
@@ -134,14 +146,13 @@ void loop() {
 }
 
 uint8_t getLedIndex(uint8_t x, uint8_t y) {
-  //x = 7 - x;
+  // x = 7 - x;
   if (y % 2 == 0) {
     return y * 8 + x;
   } else {
-    return y*8 + (7 - x);
+    return y * 8 + (7 - x);
   }
 }
-
 
 void drawProgressBar(uint8_t progress) {
   uint8_t counter = 0;
@@ -150,10 +161,10 @@ void drawProgressBar(uint8_t progress) {
   for (uint8_t y = 0; y < 8; y = y + 4) {
     for (uint8_t x = 0; x < 8; x = x + 2) {
       for (uint8_t xk = 0; xk < 2; xk++) {
-          for (uint8_t yk = 0; yk < 4; yk++) {
-            leds[getLedIndex(x + xk, y + yk)] = counter > progress ? color : black;
-            counter++;
-          }
+        for (uint8_t yk = 0; yk < 4; yk++) {
+          leds[getLedIndex(x + xk, y + yk)] = counter >= progress ? color : black;
+          counter++;
+        }
       }
       color.setHSV((counter / 8) * 32, 255, 255);
     }
