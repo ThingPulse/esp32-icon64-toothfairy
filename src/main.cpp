@@ -35,7 +35,8 @@ SOFTWARE.
 const char* ssid = "yourssid";
 const char* password = "yourpassw0rd";
 const char* audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
-const uint8_t countdownSeconds = 120;
+// the scentific (non-)consensus seems to be that 2-3min 2-3x/day be sufficient
+const uint8_t countdownSeconds = 180;
 const uint8_t ledBrightness = 40;
 // ********* END User settings *********
 
