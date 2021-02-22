@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 #include <Arduino.h>
+#include "SPIFFS.h"
 #include <FastLED.h>
 #include "AudioFileSourceICYStream.h"
 #include "AudioFileSourceBuffer.h"
@@ -31,14 +32,15 @@ SOFTWARE.
 #include <EasyButton.h>
 
 
-// ********* User settings *********
-const char* ssid = "yourssid";
-const char* password = "yourpassw0rd";
-const char* audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
+// ********* user settings *********
+String ssid = "yourssid";
+String password = "yourpassw0rd";
+String audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
 // the scentific (non-)consensus seems to be that 2-3min 2-3x/day be sufficient
-const uint8_t countdownSeconds = 180;
+uint8_t countdownSeconds = 120;
+// WARNING! Do not go over board with this as to avoid high temperatures and thus molten plastic.
 const uint8_t ledBrightness = 40;
-// ********* END User settings *********
+// ********* END user settings *********
 
 
 // Audio Settings
@@ -55,10 +57,6 @@ const uint8_t ledBrightness = 40;
 
 CRGB leds[NUM_LEDS];
 
-uint8_t getLedIndex(uint8_t x, uint8_t y);
-void drawProgressBar(uint8_t progress);
-
-
 AudioGeneratorMP3 *mp3;
 AudioFileSourceICYStream *file;
 AudioFileSourceBuffer *buff;
@@ -70,16 +68,19 @@ uint8_t countdownProgress = -1;
 uint32_t countdownLedSwitchMillis = countdownSeconds * 1000 / NUM_LEDS;
 boolean countdownIsRunning = false;
 
-void onButtonPressed() {
-  Serial.println("Starting countdown!");
-  countdownStartMillis = millis();
-  countdownIsRunning = true;
-  digitalWrite(MODE_PIN, HIGH);
-}
+
+// ********* forward declarations *********
+void drawProgressBar(uint8_t progress);
+uint8_t getLedIndex(uint8_t x, uint8_t y);
+void loadPropertiesFromSpiffs();
+void onButtonPressed();
+// ********* END forward declarations *********
+
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
+  loadPropertiesFromSpiffs();
 
   pinMode(PUSH_BUTTON, INPUT);
   pinMode(MODE_PIN, OUTPUT);
@@ -93,7 +94,7 @@ void setup() {
   button.onPressed(onButtonPressed);
 
   Serial.println("Connecting to WiFi");
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid.c_str(), password.c_str());
   // Try forever
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
@@ -102,15 +103,12 @@ void setup() {
   Serial.println("Connected");
 
   audioLogger = &Serial;
-  file = new AudioFileSourceICYStream(audioStreamUrl);
-  //file->RegisterMetadataCB(MDCallback, (void*)"ICY");
+  file = new AudioFileSourceICYStream(audioStreamUrl.c_str());
   buff = new AudioFileSourceBuffer(file, 2048);
-  //buff->RegisterStatusCB(StatusCallback, (void*)"buffer");
   out = new AudioOutputI2S();
   out->SetPinout(I2S_BCLK, I2S_LRC, I2S_DOUT );
   out->SetGain(0.3);
   mp3 = new AudioGeneratorMP3();
-  //mp3->RegisterStatusCB(StatusCallback, (void*)"mp3");
   mp3->begin(buff, out);
 
   FastLED.addLeds<WS2812B, DATA_PIN>(leds, NUM_LEDS);
@@ -143,6 +141,48 @@ void loop() {
   } else {
     Serial.printf("MP3 done\n");
     delay(1000);
+  }
+}
+
+void onButtonPressed() {
+  Serial.println("Starting countdown!");
+  countdownStartMillis = millis();
+  countdownIsRunning = true;
+  digitalWrite(MODE_PIN, HIGH);
+}
+
+void loadPropertiesFromSpiffs() {
+  if (SPIFFS.begin()) {
+    Serial.println("Attempting to read application.properties file from SPIFFS.");
+    File f = SPIFFS.open("/application.properties");
+    if (f) {
+      Serial.println("File exists. Reading and assigning properties.");
+      while (f.available()) {
+        String key = f.readStringUntil('=');
+        String value = f.readStringUntil('\n');
+        if (key == "ssid") {
+          ssid = value.c_str();
+          Serial.println("Using 'ssid' from SPIFFS");
+        } else if (key == "password") {
+          password = value.c_str();
+          Serial.println("Using 'password' from SPIFFS");
+        } else if (key == "audioStreamUrl") {
+          audioStreamUrl = value.c_str();
+          Serial.println("Using 'audioStreamUrl' from SPIFFS");
+        } else if (key == "countdownSeconds") {
+          countdownSeconds = value.toInt();
+          Serial.println("Using 'countdownSeconds' from SPIFFS");
+        }
+      }
+    }
+    f.close();
+    Serial.println("Effective properties now as follows:");
+    Serial.println("\tssid: " + ssid);
+    Serial.println("\tpassword: " + password);
+    Serial.println("\taudio stream URL: " + audioStreamUrl);
+    Serial.println("\tcountdown seconds: " + String(countdownSeconds));
+  } else {
+    Serial.println("SPIFFS mount failed.");
   }
 }
 
