@@ -40,6 +40,7 @@ String audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
 uint8_t countdownSeconds = 120;
 // WARNING! Do not go over board with this as to avoid high temperatures and thus molten plastic.
 const uint8_t ledBrightness = 40;
+const float volume = 0.3; // {0.0,4.0}
 // ********* END user settings *********
 
 
@@ -107,7 +108,7 @@ void setup() {
   buff = new AudioFileSourceBuffer(file, 2048);
   out = new AudioOutputI2S();
   out->SetPinout(I2S_BCLK, I2S_LRC, I2S_DOUT );
-  out->SetGain(0.3);
+  out->SetGain(volume);
   mp3 = new AudioGeneratorMP3();
   mp3->begin(buff, out);
 
