@@ -38,9 +38,9 @@ String password = "yourpassw0rd";
 String audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
 // the scentific (non-)consensus seems to be that 2-3min 2-3x/day be sufficient
 uint8_t countdownSeconds = 120;
+float volume = 0.3; // {0.0,4.0}
 // WARNING! Do not go over board with this as to avoid high temperatures and thus molten plastic.
 const uint8_t ledBrightness = 40;
-const float volume = 0.3; // {0.0,4.0}
 // ********* END user settings *********
 
 
@@ -90,7 +90,7 @@ void setup() {
   WiFi.disconnect();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
-  
+
   button.begin();
   button.onPressed(onButtonPressed);
 
@@ -173,6 +173,9 @@ void loadPropertiesFromSpiffs() {
         } else if (key == "countdownSeconds") {
           countdownSeconds = value.toInt();
           Serial.println("Using 'countdownSeconds' from SPIFFS");
+        } else if (key == "volume") {
+          volume = value.toFloat();
+          Serial.println("Using 'volume' from SPIFFS");
         }
       }
     }
@@ -180,6 +183,7 @@ void loadPropertiesFromSpiffs() {
     Serial.println("Effective properties now as follows:");
     Serial.println("\tssid: " + ssid);
     Serial.println("\tpassword: " + password);
+    Serial.println("\tvolume: " + String(volume));
     Serial.println("\taudio stream URL: " + audioStreamUrl);
     Serial.println("\tcountdown seconds: " + String(countdownSeconds));
   } else {
