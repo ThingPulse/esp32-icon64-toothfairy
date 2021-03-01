@@ -25,10 +25,7 @@ SOFTWARE.
 #include <Arduino.h>
 #include "SPIFFS.h"
 #include <FastLED.h>
-#include "AudioFileSourceICYStream.h"
-#include "AudioFileSourceBuffer.h"
-#include "AudioGeneratorMP3.h"
-#include "AudioOutputI2S.h"
+#include "Audio.h"
 #include <EasyButton.h>
 
 
@@ -38,7 +35,7 @@ String password = "yourpassw0rd";
 String audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
 // the scentific (non-)consensus seems to be that 2-3min 2-3x/day be sufficient
 uint8_t countdownSeconds = 120;
-float volume = 0.3; // {0.0,4.0}
+int volume = 4; // 0-21
 // WARNING! Do not go over board with this as to avoid high temperatures and thus molten plastic.
 const uint8_t ledBrightness = 40;
 // ********* END user settings *********
@@ -58,10 +55,7 @@ const uint8_t ledBrightness = 40;
 
 CRGB leds[NUM_LEDS];
 
-AudioGeneratorMP3 *mp3;
-AudioFileSourceICYStream *file;
-AudioFileSourceBuffer *buff;
-AudioOutputI2S *out;
+Audio audio;
 
 EasyButton button(PUSH_BUTTON);
 uint32_t countdownStartMillis = 0;
@@ -103,14 +97,9 @@ void setup() {
   }
   Serial.println("Connected");
 
-  audioLogger = &Serial;
-  file = new AudioFileSourceICYStream(audioStreamUrl.c_str());
-  buff = new AudioFileSourceBuffer(file, 2048);
-  out = new AudioOutputI2S();
-  out->SetPinout(I2S_BCLK, I2S_LRC, I2S_DOUT );
-  out->SetGain(volume);
-  mp3 = new AudioGeneratorMP3();
-  mp3->begin(buff, out);
+  audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+  audio.setVolume(volume);
+  audio.connecttohost(audioStreamUrl.c_str());
 
   FastLED.addLeds<WS2812B, DATA_PIN>(leds, NUM_LEDS);
   FastLED.setBrightness(ledBrightness);
@@ -131,18 +120,7 @@ void loop() {
 
   button.read();
 
-  static int lastms = 0;
-  if (mp3->isRunning()) {
-    if (millis()-lastms > 1000) {
-      lastms = millis();
-      Serial.printf("Running for %d ms...\n", lastms);
-      Serial.flush();
-     }
-    if (!mp3->loop()) mp3->stop();
-  } else {
-    Serial.printf("MP3 done\n");
-    delay(1000);
-  }
+  audio.loop();
 }
 
 void onButtonPressed() {
@@ -215,4 +193,47 @@ void drawProgressBar(uint8_t progress) {
       color.setHSV((counter / 8) * 32, 255, 255);
     }
   }
+}
+
+// The schreibfaul1/ESP32-audioI2S audio library will invoke these *if present*
+// to dump some information about the audio stream to console.
+void audio_info(const char *info) {
+  Serial.print("info        ");
+  Serial.println(info);
+}
+void audio_id3data(const char *info) { // id3 metadata
+  Serial.print("id3data     ");
+  Serial.println(info);
+}
+void audio_eof_mp3(const char *info) { // end of file
+  Serial.print("eof_mp3     ");
+  Serial.println(info);
+}
+void audio_showstation(const char *info) {
+  Serial.print("station     ");
+  Serial.println(info);
+}
+void audio_showstreamtitle(const char *info) {
+  Serial.print("streamtitle ");
+  Serial.println(info);
+}
+void audio_bitrate(const char *info) {
+  Serial.print("bitrate     ");
+  Serial.println(info);
+}
+void audio_commercial(const char *info) { // duration in sec
+  Serial.print("commercial  ");
+  Serial.println(info);
+}
+void audio_icyurl(const char *info) { // homepage
+  Serial.print("icyurl      ");
+  Serial.println(info);
+}
+void audio_lasthost(const char *info) { // stream URL played
+  Serial.print("lasthost    ");
+  Serial.println(info);
+}
+void audio_eof_speech(const char *info) {
+  Serial.print("eof_speech  ");
+  Serial.println(info);
 }
