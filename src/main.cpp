@@ -35,9 +35,9 @@ String password = "yourpassw0rd";
 String audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
 // the scentific (non-)consensus seems to be that 2-3min 2-3x/day be sufficient
 uint8_t countdownSeconds = 120;
-int volume = 4; // 0-21
+int volume = 4;       // 0-21
 // WARNING! Do not go over board with this as to avoid high temperatures and thus molten plastic.
-const uint8_t ledBrightness = 40;
+int brightness = 50;  // {0, 255}
 // ********* END user settings *********
 
 
@@ -102,7 +102,7 @@ void setup() {
   audio.connecttohost(audioStreamUrl.c_str());
 
   FastLED.addLeds<WS2812B, DATA_PIN>(leds, NUM_LEDS);
-  FastLED.setBrightness(ledBrightness);
+  FastLED.setBrightness(brightness);
 }
 
 void loop() {
@@ -154,6 +154,9 @@ void loadPropertiesFromSpiffs() {
         } else if (key == "volume") {
           volume = value.toFloat();
           Serial.println("Using 'volume' from SPIFFS");
+        } else if (key == "brightness") {
+          brightness = value.toInt();
+          log_i("Using 'brightness' from SPIFFS");
         }
       }
     }
@@ -162,6 +165,7 @@ void loadPropertiesFromSpiffs() {
     Serial.println("\tssid: " + ssid);
     Serial.println("\tpassword: " + password);
     Serial.println("\tvolume: " + String(volume));
+    Serial.println("\tbrightness: " + String(brightness));
     Serial.println("\taudio stream URL: " + audioStreamUrl);
     Serial.println("\tcountdown seconds: " + String(countdownSeconds));
   } else {
