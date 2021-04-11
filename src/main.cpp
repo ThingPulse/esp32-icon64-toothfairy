@@ -60,8 +60,9 @@ Audio audio;
 EasyButton button(PUSH_BUTTON);
 uint32_t countdownStartMillis = 0;
 uint8_t countdownProgress = -1;
-uint32_t countdownLedSwitchMillis = countdownSeconds * 1000 / NUM_LEDS;
 boolean countdownIsRunning = false;
+// initialized in setup()
+uint32_t countdownLedSwitchMillis;
 
 
 // ********* forward declarations *********
@@ -76,6 +77,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   loadPropertiesFromSpiffs();
+  countdownLedSwitchMillis = countdownSeconds * 1000 / NUM_LEDS;
 
   pinMode(PUSH_BUTTON, INPUT);
   pinMode(MODE_PIN, OUTPUT);
