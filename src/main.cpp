@@ -32,7 +32,7 @@ SOFTWARE.
 // ********* user settings *********
 String ssid = "yourssid";
 String password = "yourpassw0rd";
-String audioStreamUrl = "http://0n-80s.radionetz.de:8000/0n-80s.mp3";
+String audioStreamUrl = "http://stream.srg-ssr.ch/rsp/aacp_48.m3u";
 // the scentific (non-)consensus seems to be that 2-3min 2-3x/day be sufficient
 uint8_t countdownSeconds = 120;
 int volume = 4;       // 0-21
@@ -75,7 +75,7 @@ void onButtonPressed();
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  // delay(4000);
   loadPropertiesFromSpiffs();
   countdownLedSwitchMillis = countdownSeconds * 1000 / NUM_LEDS;
 
